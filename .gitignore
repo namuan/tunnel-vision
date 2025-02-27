@@ -13,3 +13,5 @@
 !Makefile
 !.pre-commit-config.yaml
 !.editorconfig
+!LICENSE
+!tox.ini
