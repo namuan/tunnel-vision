@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from PyQt6.QtCore import QRect, QRectF, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QPoint, QRect, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import QApplication, QWidget
 
@@ -114,12 +114,13 @@ class FocusOverlayWidget(QWidget):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(handle_color)
 
-        # Draw the corner handles
+        # Draw the corner and middle handles
         corners = {
             "top-left": self.focus_rect.topLeft(),
             "top-right": self.focus_rect.topRight(),
             "bottom-left": self.focus_rect.bottomLeft(),
             "bottom-right": self.focus_rect.bottomRight(),
+            "top-middle": QPoint(self.focus_rect.center().x(), self.focus_rect.top()),
         }
 
         for _, point in corners.items():
@@ -152,36 +153,42 @@ class FocusOverlayWidget(QWidget):
         min_width, min_height = 100, 100
         new_dims = {"x": rect.x(), "y": rect.y(), "width": rect.width(), "height": rect.height()}
 
-        # Handle horizontal changes
-        if "left" in corner:
+        if corner == "top-middle":
             new_dims["x"] += dx
-            new_dims["width"] -= dx
-        elif "right" in corner:
-            new_dims["width"] += dx
-
-        # Handle vertical changes
-        if "top" in corner:
             new_dims["y"] += dy
-            new_dims["height"] -= dy
-        elif "bottom" in corner:
-            new_dims["height"] += dy
-
-        # Enforce minimum dimensions
-        if new_dims["width"] < min_width:
+        else:
+            # Handle horizontal changes
             if "left" in corner:
-                new_dims["x"] = rect.x() + (rect.width() - min_width)
-            new_dims["width"] = min_width
+                new_dims["x"] += dx
+                new_dims["width"] -= dx
+            elif "right" in corner:
+                new_dims["width"] += dx
 
-        if new_dims["height"] < min_height:
+            # Handle vertical changes
             if "top" in corner:
-                new_dims["y"] = rect.y() + (rect.height() - min_height)
-            new_dims["height"] = min_height
+                new_dims["y"] += dy
+                new_dims["height"] -= dy
+            elif "bottom" in corner:
+                new_dims["height"] += dy
+
+            # Enforce minimum dimensions
+            if new_dims["width"] < min_width:
+                if "left" in corner:
+                    new_dims["x"] = rect.x() + (rect.width() - min_width)
+                new_dims["width"] = min_width
+
+            if new_dims["height"] < min_height:
+                if "top" in corner:
+                    new_dims["y"] = rect.y() + (rect.height() - min_height)
+                new_dims["height"] = min_height
 
         return QRect(new_dims["x"], new_dims["y"], new_dims["width"], new_dims["height"])
 
     def _update_cursor_for_corner(self, corner):
         """Set appropriate cursor based on corner"""
-        if corner in ("top-left", "bottom-right"):
+        if corner == "top-middle":
+            self.setCursor(Qt.CursorShape.SizeAllCursor)  # Changed to movement cursor
+        elif corner in ("top-left", "bottom-right"):
             self.setCursor(Qt.CursorShape.SizeFDiagCursor)
         else:
             self.setCursor(Qt.CursorShape.SizeBDiagCursor)
@@ -201,6 +208,7 @@ class FocusOverlayWidget(QWidget):
                 "top-right": self.focus_rect.topRight(),
                 "bottom-left": self.focus_rect.bottomLeft(),
                 "bottom-right": self.focus_rect.bottomRight(),
+                "top-middle": QPoint(self.focus_rect.center().x(), self.focus_rect.top()),
             }
 
             for corner, point in corners.items():
@@ -220,6 +228,7 @@ class FocusOverlayWidget(QWidget):
             "top-right": self.focus_rect.topRight(),
             "bottom-left": self.focus_rect.bottomLeft(),
             "bottom-right": self.focus_rect.bottomRight(),
+            "top-middle": QPoint(self.focus_rect.center().x(), self.focus_rect.top()),
         }
 
         for corner, point in corners.items():
