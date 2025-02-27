@@ -143,68 +143,59 @@ class FocusOverlayWidget(QWidget):
             painter.drawText(10, debug_y, help_text)
             debug_y += 20
 
-    def mouseMoveEvent(self, event):  # noqa: C901
-        """Handle mouse movement for corner dragging and cursor changing"""
-        pos = event.position().toPoint() if hasattr(event, "position") else event.pos()
+    def _get_mouse_position(self, event):
+        """Get mouse position regardless of Qt version"""
+        return event.position().toPoint() if hasattr(event, "position") else event.pos()
 
-        # If currently dragging, handle corner movement
+    def _update_rect_dimensions(self, rect, dx, dy, corner):
+        """Update rectangle dimensions based on drag direction"""
+        min_width, min_height = 100, 100
+        new_dims = {"x": rect.x(), "y": rect.y(), "width": rect.width(), "height": rect.height()}
+
+        # Handle horizontal changes
+        if "left" in corner:
+            new_dims["x"] += dx
+            new_dims["width"] -= dx
+        elif "right" in corner:
+            new_dims["width"] += dx
+
+        # Handle vertical changes
+        if "top" in corner:
+            new_dims["y"] += dy
+            new_dims["height"] -= dy
+        elif "bottom" in corner:
+            new_dims["height"] += dy
+
+        # Enforce minimum dimensions
+        if new_dims["width"] < min_width:
+            if "left" in corner:
+                new_dims["x"] = rect.x() + (rect.width() - min_width)
+            new_dims["width"] = min_width
+
+        if new_dims["height"] < min_height:
+            if "top" in corner:
+                new_dims["y"] = rect.y() + (rect.height() - min_height)
+            new_dims["height"] = min_height
+
+        return QRect(new_dims["x"], new_dims["y"], new_dims["width"], new_dims["height"])
+
+    def _update_cursor_for_corner(self, corner):
+        """Set appropriate cursor based on corner"""
+        if corner in ("top-left", "bottom-right"):
+            self.setCursor(Qt.CursorShape.SizeFDiagCursor)
+        else:
+            self.setCursor(Qt.CursorShape.SizeBDiagCursor)
+
+    def mouseMoveEvent(self, event):
+        """Handle mouse movement for corner dragging and cursor changing"""
+        pos = self._get_mouse_position(event)
+
         if self.dragging:
             dx = pos.x() - self.drag_start_pos.x()
             dy = pos.y() - self.drag_start_pos.y()
-            rect = QRect(self.original_rect)
-
-            # Minimum allowed dimensions for the focus rectangle
-            min_width = 100
-            min_height = 100
-
-            # Update the rectangle based on which corner is being dragged
-            if self.drag_corner == "top-left":
-                new_x = rect.x() + dx
-                new_y = rect.y() + dy
-                new_width = rect.width() - dx
-                new_height = rect.height() - dy
-                if new_width < min_width:
-                    new_x = rect.x() + (rect.width() - min_width)
-                    new_width = min_width
-                if new_height < min_height:
-                    new_y = rect.y() + (rect.height() - min_height)
-                    new_height = min_height
-                self.focus_rect = QRect(new_x, new_y, new_width, new_height)
-
-            elif self.drag_corner == "top-right":
-                new_y = rect.y() + dy
-                new_width = rect.width() + dx
-                new_height = rect.height() - dy
-                if new_width < min_width:
-                    new_width = min_width
-                if new_height < min_height:
-                    new_y = rect.y() + (rect.height() - min_height)
-                    new_height = min_height
-                self.focus_rect = QRect(rect.x(), new_y, new_width, new_height)
-
-            elif self.drag_corner == "bottom-left":
-                new_x = rect.x() + dx
-                new_width = rect.width() - dx
-                new_height = rect.height() + dy
-                if new_width < min_width:
-                    new_x = rect.x() + (rect.width() - min_width)
-                    new_width = min_width
-                if new_height < min_height:
-                    new_height = min_height
-                self.focus_rect = QRect(new_x, rect.y(), new_width, new_height)
-
-            elif self.drag_corner == "bottom-right":
-                new_width = rect.width() + dx
-                new_height = rect.height() + dy
-                if new_width < min_width:
-                    new_width = min_width
-                if new_height < min_height:
-                    new_height = min_height
-                self.focus_rect = QRect(rect.x(), rect.y(), new_width, new_height)
-
+            self.focus_rect = self._update_rect_dimensions(self.original_rect, dx, dy, self.drag_corner)
             self.update()
         else:
-            # Change cursor based on mouse position
             corners = {
                 "top-left": self.focus_rect.topLeft(),
                 "top-right": self.focus_rect.topRight(),
@@ -212,24 +203,16 @@ class FocusOverlayWidget(QWidget):
                 "bottom-right": self.focus_rect.bottomRight(),
             }
 
-            corner_detected = False
             for corner, point in corners.items():
                 if abs(point.x() - pos.x()) <= self.hit_threshold and abs(point.y() - pos.y()) <= self.hit_threshold:
-                    # Set appropriate diagonal resize cursor based on corner
-                    if corner == "top-left" or corner == "bottom-right":
-                        self.setCursor(Qt.CursorShape.SizeFDiagCursor)
-                    else:
-                        self.setCursor(Qt.CursorShape.SizeBDiagCursor)
-                    corner_detected = True
+                    self._update_cursor_for_corner(corner)
                     break
-
-            if not corner_detected:
-                # Reset to default cursor when not over a corner
+            else:  # No corner detected
                 self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def mousePressEvent(self, event):
         """Handle mouse press events for corner dragging only"""
-        pos = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        pos = self._get_mouse_position(event)
 
         # Check if near corner for dragging
         corners = {
