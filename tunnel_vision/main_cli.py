@@ -63,7 +63,7 @@ class FocusOverlayWidget(QWidget):
         self.scroll_timer = QTimer(self)
         self.scroll_timer.timeout.connect(self.perform_scroll)
         self.scroll_speed = -3  # default lines per scroll
-        self.scroll_interval = 10000  # milliseconds
+        self.scroll_interval = 5000  # milliseconds
 
         # Status display
         self.last_action = "Ready"
