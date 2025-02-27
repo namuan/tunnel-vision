@@ -3,6 +3,7 @@
 
 # unignore folders
 !tunnel_vision/
+!assets/
 
 # unignore files
 !.gitignore

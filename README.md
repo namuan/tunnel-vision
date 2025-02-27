@@ -2,6 +2,8 @@
 
 Hyper focused reading
 
+![](assets/tunnel-vision.gif)
+
 - **Github repository**: <https://github.com/namuan/tunnel-vision/>
 
 ## Getting started with your project
