@@ -1,0 +1,14 @@
+# ignore all root items
+/*
+
+# unignore folders
+!tunnel_vision/
+
+# unignore files
+!.gitignore
+!README.md
+!pyproject.toml
+!uv.lock
+!Makefile
+!.pre-commit-config.yaml
+!.editorconfig
