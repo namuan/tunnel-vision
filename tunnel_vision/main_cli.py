@@ -134,19 +134,20 @@ class FocusOverlayWidget(QWidget):
             )
             painter.drawEllipse(handle_rect)
 
-        # Display keyboard shortcut info
-        key_help = [
+        # Merge keyboard shortcuts and current status
+        info_display = [
             "ESC: Exit",
-            "SPACE: Toggle scroll direction",
-            "+/-: Adjust scroll speed",
-            "S: Toggle scrolling",
-            "T: Toggle always on top",  # Add this line
+            f"SPACE: Scroll Direction [{('DOWN' if self.scroll_speed < 0 else 'UP')}]",
+            f"+/-: Scroll Speed [{abs(self.scroll_speed)}]",
+            f"S: Auto-Scroll [{('ON' if self.auto_scrolling else 'OFF')}]",
+            f"T: Always on Top [{('ON' if self.always_on_top else 'OFF')}]",
         ]
 
+        # Draw merged info
         debug_y = self.height() - 140
         painter.setPen(QPen(QColor(200, 200, 200), 1))
-        for help_text in key_help:
-            painter.drawText(10, debug_y, help_text)
+        for info_text in info_display:
+            painter.drawText(10, debug_y, info_text)
             debug_y += 20
 
     def _get_mouse_position(self, event):
