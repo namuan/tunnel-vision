@@ -41,7 +41,11 @@ class FocusOverlayWidget(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
+        # Original window flags
+        self.base_flags = Qt.WindowType.FramelessWindowHint
+        self.setWindowFlags(self.base_flags | Qt.WindowType.WindowStaysOnTopHint)
+        self.always_on_top = True
+
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         # Define the focus rectangle with rounded corners
@@ -136,6 +140,7 @@ class FocusOverlayWidget(QWidget):
             "SPACE: Toggle scroll direction",
             "+/-: Adjust scroll speed",
             "S: Toggle scrolling",
+            "T: Toggle always on top",  # Add this line
         ]
 
         debug_y = self.height() - 140
@@ -317,6 +322,17 @@ class FocusOverlayWidget(QWidget):
             self.scroll_speed = -self.scroll_speed
             direction = "DOWN" if self.scroll_speed < 0 else "UP"
             self.last_action = f"Changed scroll direction to {direction}"
+            self.update()
+
+        # Toggle always on top with T key
+        elif event.key() == Qt.Key.Key_T:
+            self.always_on_top = not self.always_on_top
+            new_flags = self.base_flags
+            if self.always_on_top:
+                new_flags |= Qt.WindowType.WindowStaysOnTopHint
+            self.setWindowFlags(new_flags)
+            self.show()  # Need to show the window again after changing flags
+            self.last_action = "Always on top: " + ("ON" if self.always_on_top else "OFF")
             self.update()
 
         # Toggle scrolling with S key
