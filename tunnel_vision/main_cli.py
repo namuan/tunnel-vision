@@ -12,7 +12,12 @@ logger = logging.getLogger("TunnelVision")
 # Import macOS-specific modules
 try:
     # Import CoreGraphics for events
-    from Quartz.CoreGraphics import CGEventCreateScrollWheelEvent, CGEventPost, kCGHIDEventTap, kCGScrollEventUnitLine
+    from Quartz.CoreGraphics import (
+        CGEventCreateScrollWheelEvent,
+        CGEventPost,
+        kCGHIDEventTap,
+        kCGScrollEventUnitPixel,
+    )
 
     MACOS_MODULES_AVAILABLE = True
 except ImportError as e:
@@ -64,10 +69,13 @@ class FocusOverlayWidget(QWidget):
 
         # Auto-scroll variables
         self.auto_scrolling = False
-        self.scroll_timer = QTimer(self)
-        self.scroll_timer.timeout.connect(self.perform_scroll)
-        self.scroll_speed = -3  # default lines per scroll
-        self.scroll_interval = 5000  # milliseconds
+        # Remove the scroll_timer and just keep smooth_scroll_timer
+        self.smooth_scroll_timer = QTimer(self)
+        self.smooth_scroll_timer.timeout.connect(self.perform_smooth_scroll)
+        self.scroll_speed = -1  # default lines per scroll
+        self.scroll_interval = 10000  # milliseconds
+        self.smooth_scroll_steps = 50  # Number of steps for smooth scrolling
+        self.current_smooth_step = 0
 
         # Status display
         self.last_action = "Ready"
@@ -260,44 +268,52 @@ class FocusOverlayWidget(QWidget):
             # This allows clicks to pass through to underlying applications
             self.focus_area.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
 
-            # Start the timer for scroll events
-            self.scroll_timer.start(self.scroll_interval)
+            # Reset step counter and start smooth scrolling
+            self.current_smooth_step = 0
 
-            # Execute an immediate scroll
-            QTimer.singleShot(100, self.perform_scroll)
+            # Calculate time between smooth scrolls
+            smooth_interval = int((self.scroll_interval) / self.smooth_scroll_steps)
+            self.smooth_scroll_timer.start(smooth_interval)
         else:
             self.last_action = "Stopped auto-scrolling"
-            self.scroll_timer.stop()
+            self.smooth_scroll_timer.stop()
 
             # Make the focus area widget non-transparent to capture clicks again
             self.focus_area.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
 
         self.update()
 
-    def perform_scroll(self):
-        """Send scroll events to the window under the focus rectangle"""
-        if not self.auto_scrolling:
-            return
-
-        # Check if macOS modules are available
-        if not MACOS_MODULES_AVAILABLE:
+    def perform_smooth_scroll(self):
+        """Perform a small portion of the scroll for smoother animation"""
+        if not self.auto_scrolling or not MACOS_MODULES_AVAILABLE:
+            self.smooth_scroll_timer.stop()
             return
 
         try:
-            # Create a scroll wheel event
+            # Calculate pixels to scroll based on speed
+            pixels_per_step = abs(self.scroll_speed) * 1  # 5 pixels per speed unit
+
+            # Create a scroll wheel event with pixel-based scrolling
             scroll_event = CGEventCreateScrollWheelEvent(
                 None,  # No source
-                kCGScrollEventUnitLine,  # Use line units
+                kCGScrollEventUnitPixel,
                 1,  # Number of wheels (1 for vertical only)
-                self.scroll_speed,  # Number of lines
+                pixels_per_step if self.scroll_speed > 0 else -pixels_per_step,
             )
 
             # Post the event
             CGEventPost(kCGHIDEventTap, scroll_event)
 
+            # Increment step counter
+            self.current_smooth_step += 1
+
+            # When we reach the end of the steps, reset counter and continue
+            if self.current_smooth_step >= self.smooth_scroll_steps:
+                self.current_smooth_step = 0
+
         except Exception as e:
-            logging.warning(f"Failed to send scroll event: {e}")
-            pass
+            logging.warning(f"Failed to send smooth scroll event: {e}")
+            self.smooth_scroll_timer.stop()
 
     def mouseReleaseEvent(self, event):
         """Handle mouse release events for corner dragging"""
